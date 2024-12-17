@@ -1,5 +1,7 @@
+// server.js
 const express = require('express');
 const morgan = require('morgan');
+const connectToMongoDB = require('./config/MongoDB'); // Import the MongoDB connection function
 
 // Initialize Express app
 const app = express();
@@ -9,17 +11,23 @@ app.use(express.json()); // Parse incoming JSON requests
 app.use(morgan('dev')); // Log HTTP requests
 
 // Sample Test Route
-app.get('/api/test', (req, res) => {
-  res.json({
-    message: 'Test route is working!',
-    success: true,
-  });
-});
+//app.get('/api/test', (req, res) => {
+  //res.json({
+    //message: 'Test route is working!',
+    //success: true,
+  //});
+//});
 
 // Define the port
 const PORT = process.env.PORT || 3000;
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+// Connect to MongoDB and then start the server
+connectToMongoDB() // Call the connection function
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Unable to connect to MongoDB:', err.message);
+  });
