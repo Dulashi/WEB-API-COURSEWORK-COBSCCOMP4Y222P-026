@@ -31,3 +31,8 @@ connectToMongoDB() // Call the connection function
   .catch((err) => {
     console.error('Unable to connect to MongoDB:', err.message);
   });
+
+  
+// Use the authentication routes
+const authRoutes = require('./routes/authenticationRoutes');
+app.use('/api/auth', authRoutes);
