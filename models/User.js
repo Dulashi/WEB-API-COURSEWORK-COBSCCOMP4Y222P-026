@@ -17,6 +17,7 @@ const userSchema = new mongoose.Schema({
   roles: {
     type: String,
     enum: ['Admin', 'Operator', 'Commuter'], // Allowed roles
+    required: true, // Ensures every user has a role
   },
 });
 
