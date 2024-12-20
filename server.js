@@ -36,3 +36,9 @@ connectToMongoDB() // Call the connection function
 // Use the authentication routes
 const authRoutes = require('./routes/authenticationRoutes');
 app.use('/api/auth', authRoutes);
+
+// Use the routes Routes
+const routeRoutes = require('./routes/Admin(NTC)Routes/routeRoutes'); 
+app.use('/api/routes', routeRoutes); 
+
+
