@@ -44,3 +44,7 @@ app.use('/api/routes', routeRoutes);
 // Use the bus routes
 const busRoutes = require('./routes/Admin(NTC)Routes/busRoutes');
 app.use('/api/buses', busRoutes);
+
+// Use the trip routes
+const tripRoutes = require('./routes/Admin(NTC)Routes/tripRoutes');
+app.use('/api/trips', tripRoutes);
