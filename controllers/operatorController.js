@@ -51,6 +51,34 @@ const getAllOperators = async (req, res) => {
     }
 };
 
+// Get operator by ID
+const getOperatorById = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const operator = await Operator.findById(id);
+        if (!operator) {
+            return res.status(404).json({ message: 'Operator not found.' });
+        }
+        res.status(200).json(operator);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching operator', error: error.message });
+    }
+};
+
+// Delete operator by ID
+const deleteOperatorById = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const operator = await Operator.findByIdAndDelete(id);
+        if (!operator) {
+            return res.status(404).json({ message: 'Operator not found.' });
+        }
+        res.status(200).json({ message: 'Operator deleted successfully.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting operator', error: error.message });
+    }
+};
+
 const getPendingOperators = async (req, res) => {
     try {
         // Fetch all operators with a 'pending' status (adjust based on your model)
@@ -87,6 +115,8 @@ const manageOperatorStatus = async (req, res) => {
 module.exports = {
     registerOperator,
     getAllOperators,
+    getOperatorById,
+    deleteOperatorById,
     getPendingOperators, // Ensure this is also exported if you're using it
     manageOperatorStatus // Same for other functions
 };
