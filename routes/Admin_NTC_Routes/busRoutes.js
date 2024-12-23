@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const busController = require('../controllers/Admin(NTC)Controllers/busController');
+const busController = require('../../controllers/Admin_NTC_Controllers/busController');
 
 // Route to add a new bus
 router.post('/buses', busController.addBus);

@@ -1,4 +1,4 @@
-const Bus = require('../models/Bus');
+const Bus = require('../../models/Bus');
 
 exports.addBus = async (req, res) => {
     try {

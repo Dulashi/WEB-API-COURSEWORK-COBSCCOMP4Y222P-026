@@ -19,7 +19,7 @@ const BusSchema = new mongoose.Schema({
         required: true, 
         unique: true 
     },
-    operatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
+    operatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Operator', required: true }
   },);
   
   module.exports = mongoose.model('Bus', BusSchema);

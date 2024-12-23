@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const routeController = require('../controllers/Admin(NTC)Controllers/routeController');
+const routeController = require('../../controllers/Admin_NTC_Controllers/routeController');
+
 
 // Search all routes
 router.get('/', routeController.searchRoutes);
