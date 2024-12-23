@@ -38,15 +38,15 @@ const authRoutes = require('./routes/authenticationRoutes');
 app.use('/api/auth', authRoutes);
 
 // Use the routes Routes
-const routeRoutes = require('./routes/Admin_NTC_Routes/routeRoutes'); 
+const routeRoutes = require('./routes/routeRoutes'); 
 app.use('/api/routes', routeRoutes); 
 
 // Use the bus routes
-const busRoutes = require('./routes/Admin_NTC_Routes/busRoutes');
+const busRoutes = require('./routes/busRoutes');
 app.use('/api/buses', busRoutes);
 
 // Use the trip routes
-const tripRoutes = require('./routes/Admin_NTC_Routes/tripRoutes');
+const tripRoutes = require('./routes/tripRoutes');
 app.use('/api/trips', tripRoutes);
 
 //Use the operators routes
