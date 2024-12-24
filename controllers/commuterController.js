@@ -3,6 +3,7 @@ const Trip = require('../models/Trip');
 const Route = require('../models/Route'); 
 const Bus = require('../models/Bus');
 
+//search buses with departure station,arrival station and date
 const searchBuses = async (req, res) => {
   try {
     // Get the commuter's search parameters from the query string
@@ -52,6 +53,7 @@ const searchBuses = async (req, res) => {
   }
 };
 
+//Sort the buses by fare , departure, arrival, seatAvailability and name 
 exports.sortBuses = async (req, res) => {
     const { criteria } = req.query; 
     try {
@@ -83,3 +85,53 @@ exports.sortBuses = async (req, res) => {
         res.status(500).json({ message: 'Error sorting buses', error });
     }
 };
+
+// View the selected bus seats 
+exports.viewSeats = async (req, res) => {
+    const { tripId } = req.params;
+  
+    try {
+      // Fetch the trip by ID
+      const trip = await Trip.findById(tripId);
+  
+      if (!trip) {
+        return res.status(404).json({ message: 'Trip not found' });
+      }
+  
+      // Prepare the seat matrix
+      const totalSeats = trip.seatAvailability.totalSeats;
+      const rows = Math.ceil(totalSeats / 4); // Assuming 4 seats per row
+      const seatMatrix = [];
+  
+      // Generate seat matrix row by row
+      for (let i = 0; i < rows; i++) {
+        const row = [];
+        for (let j = 1; j <= 4; j++) {
+          const seatNumber = i * 4 + j;
+          if (seatNumber > totalSeats) break;
+  
+          // Determine the seat status
+          let status = 'available'; // Default status
+          if (trip.seatAvailability.availableForLadies.includes(seatNumber)) {
+            status = 'ladies-only';
+          } else if (trip.seatAvailability.notProvided.includes(seatNumber)) {
+            status = 'not-provided';
+          } else if (trip.seatAvailability.bookingInProgress.includes(seatNumber)) {
+            status = 'booking-in-progress';
+          } else if (trip.seatAvailability.alreadyBooked.includes(seatNumber)) {
+            status = 'already-booked';
+          }
+  
+          row.push({ seatNumber, status });
+        }
+        seatMatrix.push(row);
+      }
+  
+      // Send response
+      res.status(200).json({ seatMatrix });
+    } catch (error) {
+      console.error('Error fetching seats:', error);
+      res.status(500).json({ message: 'Error fetching seats', error });
+    }
+  };
+  
