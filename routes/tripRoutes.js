@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const tripController = require('../../controllers/Admin_NTC_Controllers/tripController');
+const tripController = require('../controllers/tripController');
 
 // Route to add a new trip
 router.post('/trips', tripController.addTrip);
