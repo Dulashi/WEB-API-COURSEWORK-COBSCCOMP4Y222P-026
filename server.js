@@ -52,3 +52,7 @@ app.use('/api/trips', tripRoutes);
 //Use the operators routes
 const operatorRoutes = require('./routes/operatorRoutes');  
 app.use('/api/operators', operatorRoutes); 
+
+//Use the commuters routes
+const CommuterRoutes = require('./routes/commuterRoutes');  
+app.use('/api/commuters', CommuterRoutes); 
