@@ -1,16 +1,16 @@
 // MongoDB.js
 const mongoose = require('mongoose');
+require('dotenv').config(); // Load environment variables from .env file
 
-
-const MONGO_URI = "mongodb+srv://Dulashi:newDB2002NTC@cluster0.5p9d1.mongodb.net/National_Transport_DB?retryWrites=true&w=majority&appName=Cluster0";
+// Use the MONGO_URI from the .env file
+const MONGO_URI = process.env.MONGO_URI;
 
 // Connect to MongoDB Atlas
 module.exports = async () => {
   try {
-    await mongoose.connect(MONGO_URI, { useNewUrlParser: false, useUnifiedTopology: false });
+    await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
     console.log('Connected to MongoDB Atlas successfully!');
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
   }
 };
-
