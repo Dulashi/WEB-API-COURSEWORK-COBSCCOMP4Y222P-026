@@ -6,6 +6,7 @@ const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
 const sendEmail = require('../utils/email');
 const sendSMS = require('../utils/sms');
+const crypto = require('crypto');
 
 // Search buses with departure station, arrival station, and date by commuter
 const searchBuses = async (req, res) => {
@@ -191,13 +192,26 @@ const processPayment = async (req, res) => {
     });
     await payment.save();
 
-    booking.status = 'Paid';
+    // Generate Booking Token after payment
+    const bookingToken = crypto.randomBytes(16).toString('hex');
+    booking.bookingToken = bookingToken;
     await booking.save();
 
-    const emailContent = `Payment Successful for booking ${booking.seatNumber}`;
+    const emailContent = `
+      Payment Successful for your booking! 
+      Seat Number: ${booking.seatNumber}, 
+      Bus Number: ${booking.tripId.busNumber}, 
+      Boarding Place: ${booking.boardingPlace}, 
+      Destination Place: ${booking.destinationPlace}.
+      Your Booking Token: ${bookingToken}.
+    `;
     await sendEmail(booking.email, 'Booking Payment Confirmation', emailContent);
 
-    const smsContent = `Payment successful for booking seat ${booking.seatNumber}. Amount: ${booking.totalPrice}. Reference: ${transactionId}`;
+    const smsContent = `
+      Payment successful! Seat: ${booking.seatNumber}, Bus: ${booking.tripId.busNumber}.
+      Boarding: ${booking.boardingPlace}, Destination: ${booking.destinationPlace}.
+      Token: ${bookingToken}. Amount: ${booking.totalPrice}. Ref: ${transactionId}.
+    `;
     await sendSMS(booking.mobileNumber, smsContent);
 
     res.status(200).json({ message: 'Payment successful', payment });
@@ -208,8 +222,8 @@ const processPayment = async (req, res) => {
 
 // Cancel a booking
 const cancelBooking = async (req, res) => {
-  const { user } = req; // Assuming req.user contains logged-in user data
-  const { bookingId } = req.params;
+  const { user } = req;
+  const { bookingId, bookingToken, otp } = req.body;
 
   if (!user) {
     return res.status(401).json({ message: 'Unauthorized. Please log in.' });
@@ -223,6 +237,16 @@ const cancelBooking = async (req, res) => {
       return res.status(403).json({ message: 'You are not authorized to cancel this booking.' });
     }
 
+    if (booking.bookingToken !== bookingToken) {
+      return res.status(400).json({ message: 'Invalid booking token.' });
+    }
+
+    // Simulate OTP check
+    const generatedOTP = otp; // In real scenarios, validate OTP from a third-party service
+    if (generatedOTP !== '123456') { // This should be replaced with real OTP generation and validation
+      return res.status(400).json({ message: 'Invalid OTP.' });
+    }
+
     const trip = await Trip.findById(booking.tripId);
     if (!trip) return res.status(404).json({ message: 'Trip not found' });
 
@@ -233,10 +257,19 @@ const cancelBooking = async (req, res) => {
     booking.status = 'Canceled';
     await booking.save();
 
-    const emailContent = `Booking Canceled for seat ${booking.seatNumber}`;
+    const emailContent = `
+      Booking Canceled!
+      Seat Number: ${booking.seatNumber}, 
+      Bus Number: ${booking.tripId.busNumber}, 
+      Boarding Place: ${booking.boardingPlace}, 
+      Destination Place: ${booking.destinationPlace}.
+    `;
     await sendEmail(booking.email, 'Booking Cancellation', emailContent);
 
-    const smsContent = `Booking canceled for seat ${booking.seatNumber}. Departure: ${trip.departureTime}. Arrival: ${trip.arrivalTime}.`;
+    const smsContent = `
+      Booking canceled. Seat: ${booking.seatNumber}, Bus: ${booking.tripId.busNumber}.
+      Boarding: ${booking.boardingPlace}, Destination: ${booking.destinationPlace}.
+    `;
     await sendSMS(booking.mobileNumber, smsContent);
 
     res.status(200).json({ message: 'Booking canceled successfully', booking });
