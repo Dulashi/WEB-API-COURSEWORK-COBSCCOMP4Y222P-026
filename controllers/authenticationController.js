@@ -1,7 +1,9 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User'); 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key'; // Use .env for production
+require('dotenv').config();  // Load environment variables
+
+const JWT_SECRET = process.env.JWT_SECRET; // Use .env for production
 
 // SIGN UP
 exports.signup = async (req, res) => {

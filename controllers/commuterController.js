@@ -124,7 +124,13 @@ const viewSeats = async (req, res) => {
 
 // Book a seat for the commuter
 const bookSeat = async (req, res) => {
+  const { user } = req; // Assuming req.user contains logged-in user data
   const { tripId, passengerName, mobileNumber, email, seatNumber, boardingPlace, destinationPlace, totalPrice } = req.body;
+
+  if (!user) {
+    return res.status(401).json({ message: 'Unauthorized. Please log in.' });
+  }
+
   try {
     const trip = await Trip.findById(tripId);
     if (!trip) return res.status(404).json({ message: 'Trip not found' });
@@ -138,6 +144,7 @@ const bookSeat = async (req, res) => {
     await trip.save();
 
     const booking = new Booking({
+      userId: user._id, // Associate the booking with the logged-in user
       tripId,
       passengerName,
       mobileNumber,
@@ -201,10 +208,20 @@ const processPayment = async (req, res) => {
 
 // Cancel a booking
 const cancelBooking = async (req, res) => {
+  const { user } = req; // Assuming req.user contains logged-in user data
   const { bookingId } = req.params;
+
+  if (!user) {
+    return res.status(401).json({ message: 'Unauthorized. Please log in.' });
+  }
+
   try {
     const booking = await Booking.findById(bookingId).populate('tripId');
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    if (booking.userId.toString() !== user._id.toString()) {
+      return res.status(403).json({ message: 'You are not authorized to cancel this booking.' });
+    }
 
     const trip = await Trip.findById(booking.tripId);
     if (!trip) return res.status(404).json({ message: 'Trip not found' });
@@ -228,6 +245,36 @@ const cancelBooking = async (req, res) => {
   }
 };
 
+// View own bookings (Commuter)
+const viewOwnBookings = async (req, res) => {
+  try {
+    const { user } = req; // Assuming req.user contains logged-in user data
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized. Please log in.' });
+    }
+
+    const bookings = await Booking.find({ userId: user._id }).populate('tripId');
+    if (bookings.length === 0) {
+      return res.status(404).json({ message: 'No bookings found.' });
+    }
+
+    const bookingDetails = bookings.map(booking => ({
+      tripId: booking.tripId._id,
+      busName: booking.tripId.busNumber.busName,
+      route: `${booking.tripId.routeNumber.startPoint} to ${booking.tripId.routeNumber.endPoint}`,
+      departureTime: booking.tripId.departureTime,
+      seatNumber: booking.seatNumber,
+      status: booking.status,
+      bookingDate: booking.createdAt,
+    }));
+
+    res.status(200).json({ success: true, bookings: bookingDetails });
+  } catch (error) {
+    console.error('Error fetching bookings:', error);
+    res.status(500).json({ message: 'Error fetching bookings', error });
+  }
+};
+
 module.exports = {
   searchBuses,
   sortBuses,
@@ -235,4 +282,5 @@ module.exports = {
   bookSeat,
   processPayment,
   cancelBooking,
+  viewOwnBookings, 
 };

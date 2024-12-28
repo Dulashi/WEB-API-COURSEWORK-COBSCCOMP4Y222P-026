@@ -6,14 +6,21 @@ const {
   bookSeat,
   processPayment,
   cancelBooking,
+  viewOwnBookings,
 } = require('../controllers/commuterController');
+const authenticateUser = require('../middleware/authenticateUser'); // Import middleware
+
 const router = express.Router();
 
-router.get('/search', searchBuses); // Search buses by departure station, arrival station, and date
+// Public Routes (no authentication required)
+router.get('/search', searchBuses); // Search buses
 router.get('/sort', sortBuses); // Sort buses
-router.get('/trips/:tripId/seats', viewSeats); // View seats by tripId
-router.post('/book-seat', bookSeat); // Book a seat
-router.put('/cancel-booking/:bookingId', cancelBooking); // Cancel a booking
-router.post('/payments', processPayment); // Process a payment
+
+// Protected Routes (authentication required)
+router.get('/trips/:tripId/seats', authenticateUser, viewSeats); // View seats by tripId
+router.post('/book-seat', authenticateUser, bookSeat); // Book a seat
+router.put('/cancel-booking/:bookingId', authenticateUser, cancelBooking); // Cancel a booking
+router.post('/payments', authenticateUser, processPayment); // Process a payment
+router.get('/my-bookings', authenticateUser, viewOwnBookings); // View user's own bookings
 
 module.exports = router;
