@@ -34,19 +34,19 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check if user exists
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    // Compare passwords
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ error: 'Invalid credentials.' });
 
-    // Generate JWT
-    const token = jwt.sign({ id: user._id, roles: user.roles }, JWT_SECRET, { expiresIn: '1h' });
+    if (user.roles.includes('Operator') && user.status !== 'Approved') {
+      return res.status(403).json({ error: 'Your account is awaiting admin approval.' });
+    }
 
+    const token = jwt.sign({ id: user._id, roles: user.roles }, process.env.JWT_SECRET, { expiresIn: '1h' });
     res.status(200).json({ message: 'Logged in successfully!', token });
   } catch (err) {
-    res.status(500).json({ error: 'Something went wrong during log in.', details: err.message });
+    res.status(500).json({ error: 'Error during login.', details: err.message });
   }
 };

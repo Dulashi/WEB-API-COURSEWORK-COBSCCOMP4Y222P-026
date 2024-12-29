@@ -54,5 +54,5 @@ const operatorRoutes = require('./routes/operatorRoutes');
 app.use('/api/operators', operatorRoutes); 
 
 //Use the commuters routes
-const CommuterRoutes = require('./routes/commuterRoutes');  
-app.use('/api/commuters', CommuterRoutes); 
+const commuterRoutes = require('./routes/commuterRoutes'); 
+app.use('/api/commuter', commuterRoutes);

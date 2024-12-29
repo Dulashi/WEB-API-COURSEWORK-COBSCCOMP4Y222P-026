@@ -2,12 +2,21 @@ const Trip = require('../models/Trip');
 
 exports.addTrip = async (req, res) => {
     try {
-        const { routeNumber, busNumber, date, departureTime, arrivalTime, seatAvailability, price, status } = req.body;
-        const newTrip = new Trip({ routeNumber, busNumber, date, departureTime, arrivalTime, seatAvailability, price, status });
-        await newTrip.save();
-        res.status(201).json(newTrip);
+        // Check if the request body is an array or a single object
+        const trips = Array.isArray(req.body) ? req.body : [req.body];
+
+        // Use Promise.all to save all trips concurrently
+        const savedTrips = await Promise.all(
+            trips.map(async (tripData) => {
+                const { routeNumber, busNumber, date, departureTime, arrivalTime, seatAvailability, price, status } = tripData;
+                const newTrip = new Trip({ routeNumber, busNumber, date, departureTime, arrivalTime, seatAvailability, price, status });
+                return await newTrip.save();
+            })
+        );
+
+        res.status(201).json({ message: 'Trips added successfully', data: savedTrips });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Error adding trips', error: error.message });
     }
 };
 

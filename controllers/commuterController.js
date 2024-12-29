@@ -12,34 +12,53 @@ const crypto = require('crypto');
 const searchBuses = async (req, res) => {
   try {
     const { departureStation, arrivalStation, date } = req.query;
-    const searchDate = moment(date).startOf('day').toDate();
+    const searchDate = moment(date).toDate();
 
+    const startOfDay = moment(searchDate).startOf('day').toDate();
+    const endOfDay = moment(searchDate).endOf('day').toDate();
+
+    // Find trips based on routeNumber and busNumber as strings
     const trips = await Trip.find({
-      'routeNumber.startPoint': departureStation,
-      'routeNumber.endPoint': arrivalStation,
-      date: searchDate,
+      date: { $gte: startOfDay, $lte: endOfDay },
       status: 'Scheduled'
-    })
-    .populate('routeNumber')
-    .populate('busNumber');
+    });
 
-    if (trips.length === 0) {
+    // Get matching routes
+    const routes = await Route.find({
+      startPoint: departureStation,
+      endPoint: arrivalStation
+    });
+
+    // Filter trips that match the routes
+    const filteredTrips = trips.filter(trip =>
+      routes.some(route => route.routeNumber === trip.routeNumber)
+    );
+
+    if (filteredTrips.length === 0) {
       return res.status(404).json({ message: 'No buses found for the selected criteria.' });
     }
 
-    const tripDetails = trips.map(trip => ({
-      departureStation: trip.routeNumber.startPoint,
-      arrivalStation: trip.routeNumber.endPoint,
-      date: trip.date,
-      busName: trip.busNumber.busName,
-      busType: trip.busNumber.busType,
-      routeNumber: trip.routeNumber.routeNumber,
-      departureTime: trip.departureTime,
-      arrivalTime: trip.arrivalTime,
-      price: trip.price,
-      availableSeats: trip.seatAvailability.available.length,
-      closingDateTime: moment(trip.date).set({ hour: 18, minute: 0 }).toISOString()
-    }));
+    // Map route and bus details into the response
+    const tripDetails = await Promise.all(
+      filteredTrips.map(async trip => {
+        const route = routes.find(r => r.routeNumber === trip.routeNumber);
+        const bus = await Bus.findOne({ busNumber: trip.busNumber });
+
+        return {
+          departureStation: route.startPoint,
+          arrivalStation: route.endPoint,
+          date: trip.date,
+          busName: bus.busName,
+          busType: bus.busType,
+          routeNumber: trip.routeNumber,
+          departureTime: trip.departureTime,
+          arrivalTime: trip.arrivalTime,
+          price: trip.price,
+          availableSeats: trip.seatAvailability.available.length,
+          closingDateTime: moment(trip.date).set({ hour: 18, minute: 0 }).toISOString()
+        };
+      })
+    );
 
     res.json({ success: true, trips: tripDetails });
   } catch (error) {
@@ -47,7 +66,6 @@ const searchBuses = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
-
 // Sort buses by criteria (fare, departure, arrival, seat availability, name)
 const sortBuses = async (req, res) => {
     const { criteria } = req.query;
@@ -125,12 +143,15 @@ const viewSeats = async (req, res) => {
 
 // Book a seat for the commuter
 const bookSeat = async (req, res) => {
-  const { user } = req; // Assuming req.user contains logged-in user data
-  const { tripId, passengerName, mobileNumber, email, seatNumber, boardingPlace, destinationPlace, totalPrice } = req.body;
+  const { user } = req;
 
   if (!user) {
     return res.status(401).json({ message: 'Unauthorized. Please log in.' });
   }
+
+  console.log('User object:', user); // Debugging user object
+
+  const { tripId, passengerName, mobileNumber, email, seatNumber, boardingPlace, destinationPlace, totalPrice } = req.body;
 
   try {
     const trip = await Trip.findById(tripId);
@@ -145,7 +166,7 @@ const bookSeat = async (req, res) => {
     await trip.save();
 
     const booking = new Booking({
-      userId: user._id, // Associate the booking with the logged-in user
+      userId: user.id, // Use user.id instead of user._id
       tripId,
       passengerName,
       mobileNumber,
@@ -165,6 +186,7 @@ const bookSeat = async (req, res) => {
 
     res.status(200).json({ message: 'Seat reserved. Proceed to payment.', booking });
   } catch (error) {
+    console.error('Booking error:', error);
     res.status(500).json({ message: 'Error booking seat', error });
   }
 };

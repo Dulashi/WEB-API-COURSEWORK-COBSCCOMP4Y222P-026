@@ -2,19 +2,17 @@ const mongoose = require('mongoose');
 
 const TripSchema = new mongoose.Schema({
   routeNumber: { 
-    type: String, 
-    required: true, 
-    ref: 'Route' // Refers to the routeNumber in Route schema
+    type: String,  // Storing as a string
+    required: true
   },
   busNumber: { 
-    type: String, 
-    required: true, 
-    ref: 'Bus' // Refers to the busNumber in Bus schema
+    type: String,  // Storing as a string
+    required: true
   },
   date: { 
     type: Date, 
     required: true 
-  }, // Date of the trip
+  },
   departureTime: { 
     type: Date, 
     required: true 
@@ -24,25 +22,12 @@ const TripSchema = new mongoose.Schema({
     required: true 
   },
   seatAvailability: {
-    totalSeats: { 
-      type: Number, 
-      required: true 
-    },
-    availableForLadies: [{ 
-      type: Number 
-    }], // Array of seat numbers for ladies
-    notProvided: [{ 
-      type: Number 
-    }], // Array of seat numbers not provided
-    bookingInProgress: [{ 
-      type: Number 
-    }], // Array of seat numbers being booked
-    available: [{ 
-      type: Number 
-    }], // Array of available seat numbers
-    alreadyBooked: [{ 
-      type: Number 
-    }] // Array of already booked seat numbers
+    totalSeats: { type: Number, required: true },
+    availableForLadies: [{ type: Number }],
+    notProvided: [{ type: Number }],
+    bookingInProgress: [{ type: Number }],
+    available: [{ type: Number }],
+    alreadyBooked: [{ type: Number }]
   },
   price: { 
     type: Number, 
@@ -52,6 +37,6 @@ const TripSchema = new mongoose.Schema({
     type: String, 
     default: 'Scheduled' 
   } 
-},);
+});
 
 module.exports = mongoose.model('Trip', TripSchema);
