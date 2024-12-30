@@ -1,14 +1,27 @@
 const express = require('express');
-const { searchBuses } = require('../controllers/commuterController');
+const {
+  searchBuses,
+  sortBuses,
+  viewSeats,
+  bookSeat,
+  processPayment,
+  cancelBooking,
+  viewOwnBookings,
+} = require('../controllers/commuterController');
+const authenticateUser = require('../middleware/authenticateUser');  // Import middleware
+const authorizeRoles = require('../middleware/authorizeRoles');  // Import authorizeRoles middleware
+
 const router = express.Router();
 
-router.get('/search', searchBuses); // Search buses by departure station, arrival station, and date
-router.get('/sort', sortBuses); // Sort Buses
-router.get('/trips/:tripId/seats', viewSeats); // Defined the route for viewing seats by tripId
-router.post('/book-seat', bookingController.bookSeat);// Route for booking a seat
-router.put('/cancel-booking/:bookingId', bookingController.cancelBooking); // Route for canceling a booking
-router.post('/payments', processPayment); // route for making the payments
+// Public Routes (no authentication required)
+router.get('/search', searchBuses); // Search buses
+router.get('/sort', sortBuses); // Sort buses by criteria
+router.get('/trips/:tripId/seats', viewSeats); // View seats for a specific trip
 
+// Protected Routes (authentication and commuter role required)
+router.post('/book-seat', authenticateUser, authorizeRoles(['Commuter']), bookSeat); // Book a seat
+router.post('/payments', authenticateUser, authorizeRoles(['Commuter']), processPayment); // Process payment for a booking
+router.put('/cancel-booking', authenticateUser, authorizeRoles(['Commuter']), cancelBooking); // Cancel a booking
+router.get('/my-bookings', authenticateUser, authorizeRoles(['Commuter']), viewOwnBookings); // View commuter's own bookings
 
 module.exports = router;
-

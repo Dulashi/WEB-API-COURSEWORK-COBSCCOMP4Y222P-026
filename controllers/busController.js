@@ -2,12 +2,19 @@ const Bus = require('../models/Bus');
 
 exports.addBus = async (req, res) => {
     try {
-        const { busNumber, busName, busType, permitNumber, operatorId } = req.body;
-        const newBus = new Bus({ busNumber, busName, busType, permitNumber, operatorId });
-        await newBus.save();
-        res.status(201).json(newBus);
+        const buses = Array.isArray(req.body) ? req.body : [req.body];
+
+        const savedBuses = await Promise.all(
+            buses.map(async (busData) => {
+                const { busNumber, busName, busType, permitNumber, operatorId } = busData;
+                const newBus = new Bus({ busNumber, busName, busType, permitNumber, operatorId });
+                return await newBus.save();
+            })
+        );
+
+        res.status(201).json({ message: 'Buses added successfully', data: savedBuses });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Error adding buses', error: error.message });
     }
 };
 

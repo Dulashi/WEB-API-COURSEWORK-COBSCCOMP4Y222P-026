@@ -4,60 +4,70 @@ const Route = require('../models/Route');
 const Bus = require('../models/Bus');
 const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
+const sendEmail = require('../utils/email');
+const crypto = require('crypto');
 
-//search buses with departure station,arrival station and date by commuter 
+// Search buses with departure station, arrival station, and date by commuter
 const searchBuses = async (req, res) => {
   try {
-    // Get the commuter's search parameters from the query string
     const { departureStation, arrivalStation, date } = req.query;
+    const searchDate = moment(date).toDate();
 
-    // Convert the date to a valid Date object
-    const searchDate = moment(date).startOf('day').toDate();
+    const startOfDay = moment(searchDate).startOf('day').toDate();
+    const endOfDay = moment(searchDate).endOf('day').toDate();
 
-    // Fetch trips matching the search criteria
+    // Find trips based on routeNumber and busNumber as strings
     const trips = await Trip.find({
-      'routeNumber.startPoint': departureStation,
-      'routeNumber.endPoint': arrivalStation,
-      date: searchDate,
-      status: 'Scheduled' // Ensure only scheduled trips are returned
-    })
-      .populate('routeNumber') // Populate the route details (e.g., startPoint, endPoint)
-      .populate('busNumber'); // Populate bus details (e.g., busName, busType)
+      date: { $gte: startOfDay, $lte: endOfDay },
+      status: 'Scheduled'
+    });
 
-    if (trips.length === 0) {
+    // Get matching routes
+    const routes = await Route.find({
+      startPoint: departureStation,
+      endPoint: arrivalStation
+    });
+
+    // Filter trips that match the routes
+    const filteredTrips = trips.filter(trip =>
+      routes.some(route => route.routeNumber === trip.routeNumber)
+    );
+
+    if (filteredTrips.length === 0) {
       return res.status(404).json({ message: 'No buses found for the selected criteria.' });
     }
 
-    // Format the trips to return only the relevant details
-    const tripDetails = trips.map(trip => ({
-      departureStation: trip.routeNumber.startPoint, // Get departure station from Route
-      arrivalStation: trip.routeNumber.endPoint, // Get arrival station from Route
-      date: trip.date, // The date of the trip
-      busName: trip.busNumber.busName, // Bus name from Bus model
-      busType: trip.busNumber.busType, // Bus type from Bus model
-      routeNumber: trip.routeNumber.routeNumber, // Route number from Route model
-      departureTime: trip.departureTime, // Departure time of the trip
-      arrivalTime: trip.arrivalTime, // Arrival time of the trip
-      price: trip.price, // Price for the trip
-      availableSeats: trip.seatAvailability.available.length, // Count available seats
-      closingDateTime: moment(trip.date).set({ hour: 18, minute: 0 }).toISOString() // Example closing time for booking
-    }));
+    // Map route and bus details into the response
+    const tripDetails = await Promise.all(
+      filteredTrips.map(async trip => {
+        const route = routes.find(r => r.routeNumber === trip.routeNumber);
+        const bus = await Bus.findOne({ busNumber: trip.busNumber });
 
-    // Return the formatted trips
-    res.json({
-      success: true,
-      trips: tripDetails,
-    });
+        return {
+          departureStation: route.startPoint,
+          arrivalStation: route.endPoint,
+          date: trip.date,
+          busName: bus.busName,
+          busType: bus.busType,
+          routeNumber: trip.routeNumber,
+          departureTime: trip.departureTime,
+          arrivalTime: trip.arrivalTime,
+          price: trip.price,
+          availableSeats: trip.seatAvailability.available.length,
+          closingDateTime: moment(trip.date).set({ hour: 18, minute: 0 }).toISOString()
+        };
+      })
+    );
 
+    res.json({ success: true, trips: tripDetails });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
-
-//Sort the buses by fare , departure, arrival, seatAvailability and name by commuter 
-exports.sortBuses = async (req, res) => {
-    const { criteria } = req.query; 
+// Sort buses by criteria (fare, departure, arrival, seat availability, name)
+const sortBuses = async (req, res) => {
+    const { criteria } = req.query;
     try {
         const trips = await Trip.find().populate('busNumber routeNumber');
         let sortedTrips;
@@ -88,60 +98,58 @@ exports.sortBuses = async (req, res) => {
     }
 };
 
-// View the selected bus seats by commuter 
-exports.viewSeats = async (req, res) => {
-    const { tripId } = req.params;
-  
-    try {
-      // Fetch the trip by ID
-      const trip = await Trip.findById(tripId);
-  
-      if (!trip) {
-        return res.status(404).json({ message: 'Trip not found' });
-      }
-  
-      // Prepare the seat matrix
-      const totalSeats = trip.seatAvailability.totalSeats;
-      const rows = Math.ceil(totalSeats / 4); // Assuming 4 seats per row
-      const seatMatrix = [];
-  
-      // Generate seat matrix row by row
-      for (let i = 0; i < rows; i++) {
-        const row = [];
-        for (let j = 1; j <= 4; j++) {
-          const seatNumber = i * 4 + j;
-          if (seatNumber > totalSeats) break;
-  
-          // Determine the seat status
-          let status = 'available'; // Default status
-          if (trip.seatAvailability.availableForLadies.includes(seatNumber)) {
-            status = 'ladies-only';
-          } else if (trip.seatAvailability.notProvided.includes(seatNumber)) {
-            status = 'not-provided';
-          } else if (trip.seatAvailability.bookingInProgress.includes(seatNumber)) {
-            status = 'booking-in-progress';
-          } else if (trip.seatAvailability.alreadyBooked.includes(seatNumber)) {
-            status = 'already-booked';
-          }
-  
-          row.push({ seatNumber, status });
-        }
-        seatMatrix.push(row);
-      }
-  
-      // Send response
-      res.status(200).json({ seatMatrix });
-    } catch (error) {
-      console.error('Error fetching seats:', error);
-      res.status(500).json({ message: 'Error fetching seats', error });
+// View seats in a selected bus
+const viewSeats = async (req, res) => {
+  const { tripId } = req.params;
+  try {
+    const trip = await Trip.findById(tripId);
+    if (!trip) {
+      return res.status(404).json({ message: 'Trip not found' });
     }
-  };
-  
-// making a booking or reserving a seat in a bus by commuter 
-const sendEmail = require('../utils/email');
-const sendSMS = require('../utils/sms');
 
-exports.bookSeat = async (req, res) => {
+    const totalSeats = trip.seatAvailability.totalSeats;
+    const rows = Math.ceil(totalSeats / 4); 
+    const seatMatrix = [];
+
+    for (let i = 0; i < rows; i++) {
+      const row = [];
+      for (let j = 1; j <= 4; j++) {
+        const seatNumber = i * 4 + j;
+        if (seatNumber > totalSeats) break;
+
+        let status = 'available';
+        if (trip.seatAvailability.availableForLadies.includes(seatNumber)) {
+          status = 'ladies-only';
+        } else if (trip.seatAvailability.notProvided.includes(seatNumber)) {
+          status = 'not-provided';
+        } else if (trip.seatAvailability.bookingInProgress.includes(seatNumber)) {
+          status = 'booking-in-progress';
+        } else if (trip.seatAvailability.alreadyBooked.includes(seatNumber)) {
+          status = 'already-booked';
+        }
+
+        row.push({ seatNumber, status });
+      }
+      seatMatrix.push(row);
+    }
+
+    res.status(200).json({ seatMatrix });
+  } catch (error) {
+    console.error('Error fetching seats:', error);
+    res.status(500).json({ message: 'Error fetching seats', error });
+  }
+};
+
+// Book a seat for the commuter
+const bookSeat = async (req, res) => {
+  const { user } = req;
+
+  if (!user) {
+    return res.status(401).json({ message: 'Unauthorized. Please log in.' });
+  }
+
+  console.log('User object:', user); // Debugging user object
+
   const { tripId, passengerName, mobileNumber, email, seatNumber, boardingPlace, destinationPlace, totalPrice } = req.body;
 
   try {
@@ -152,13 +160,12 @@ exports.bookSeat = async (req, res) => {
       return res.status(400).json({ message: 'Seat not available' });
     }
 
-    // Mark seat as in-progress
     trip.seatAvailability.available = trip.seatAvailability.available.filter(seat => seat !== seatNumber);
     trip.seatAvailability.bookingInProgress.push(seatNumber);
     await trip.save();
 
-    // Create booking
     const booking = new Booking({
+      userId: user.id, // Use user.id instead of user._id
       tripId,
       passengerName,
       mobileNumber,
@@ -167,140 +174,157 @@ exports.bookSeat = async (req, res) => {
       boardingPlace,
       destinationPlace,
       totalPrice,
-      status: 'Confirmed', // Still pending payment
+      status: 'Confirmed',
     });
 
     await booking.save();
 
-    // Finalize seat status
     trip.seatAvailability.bookingInProgress = trip.seatAvailability.bookingInProgress.filter(seat => seat !== seatNumber);
     trip.seatAvailability.alreadyBooked.push(seatNumber);
     await trip.save();
 
-    res.status(200).json({
-      message: 'Seat reserved. Proceed to payment.',
-      booking,
-    });
+    res.status(200).json({ message: 'Seat reserved. Proceed to payment.', booking });
   } catch (error) {
+    console.error('Booking error:', error);
     res.status(500).json({ message: 'Error booking seat', error });
   }
 };
 
-//making payments for the booking by the commuter 
-exports.processPayment = async (req, res) => {
-    const { bookingId, paymentMethod, cardDetails } = req.body;
-  
-    try {
-      // Validate booking
-      const booking = await Booking.findById(bookingId).populate('tripId');
-      if (!booking) return res.status(404).json({ message: 'Booking not found' });
-  
-      // Ensure booking is valid for payment
-      if (booking.status !== 'Confirmed') {
-        return res.status(400).json({ message: 'Booking is not in a valid state for payment' });
-      }
-  
-      // Mock payment processing
-      const transactionId = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  
-      // Create Payment entry
-      const payment = new Payment({
-        bookingId,
-        amount: booking.totalPrice,
-        paymentMethod,
-        cardDetails: {
-          nameOnCard: cardDetails.nameOnCard,
-          cardNumber: cardDetails.cardNumber,
-          expiryDate: cardDetails.expiryDate,
-          cvv: cardDetails.cvv
-        },
-        status: 'Successful',
-        transactionId
-      });
-      await payment.save();
-  
-      // Update booking status to Paid
-      booking.status = 'Paid';
-      await booking.save();
-  
-      // Send confirmation email and SMS
-      const trip = booking.tripId;
-      const emailContent = `
-        Payment Successful!
-        Booking Details:
-        - Bus Name: ${trip.busName}
-        - Bus Number: ${trip.busNumber}
-        - Seat Number: ${booking.seatNumber}
-        - Departure: ${trip.departureTime}
-        - Arrival: ${trip.arrivalTime}
-        Payment Details:
-        - Total Amount: ${booking.totalPrice}
-        - Payment Date: ${payment.paymentDate}
-        - Reference Number: ${transactionId}
-      `;
-      await sendEmail(booking.email, 'Booking Payment Confirmation', emailContent);
-  
-      const smsContent = `Payment successful for booking seat ${booking.seatNumber} on ${trip.busName} (${trip.busNumber}). Departure: ${trip.departureTime}. Amount: ${booking.totalPrice}. Reference: ${transactionId}`;
-      await sendSMS(booking.mobileNumber, smsContent);
-  
-      // Respond with payment details
-      res.status(200).json({
-        message: 'Payment successful',
-        payment,
-      });
-    } catch (error) {
-      res.status(500).json({ message: 'Error processing payment', error });
+// Process the payment for the booking
+const processPayment = async (req, res) => {
+  const { bookingId, paymentMethod, cardDetails } = req.body;
+  try {
+    const booking = await Booking.findById(bookingId).populate('tripId');
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    if (booking.status !== 'Confirmed') {
+      return res.status(400).json({ message: 'Booking is not in a valid state for payment' });
     }
-  };
 
+    const transactionId = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+    const payment = new Payment({
+      bookingId,
+      amount: booking.totalPrice,
+      paymentMethod,
+      cardDetails: { ...cardDetails },
+      status: 'Successful',
+      transactionId,
+    });
+    await payment.save();
 
-//Cancelling a booking or reserved seat in a bus by commuter 
-const sendEmail = require('../utils/email');
-const sendSMS = require('../utils/sms');
+    // Generate Booking Token after payment
+    const bookingToken = crypto.randomBytes(16).toString('hex');
+    booking.bookingToken = bookingToken;
+    await booking.save();
 
-exports.cancelBooking = async (req, res) => {
-  const { bookingId } = req.params;
+    const emailContent = `
+      Payment Successful for your booking! 
+      Seat Number: ${booking.seatNumber}, 
+      Bus Number: ${booking.tripId.busNumber}, 
+      Boarding Place: ${booking.boardingPlace}, 
+      Destination Place: ${booking.destinationPlace}.
+      Your Booking Token: ${bookingToken}.
+    `;
+    await sendEmail(booking.email, 'Booking Payment Confirmation', emailContent);
+
+    res.status(200).json({ message: 'Payment successful', payment });
+  } catch (error) {
+    res.status(500).json({ message: 'Error processing payment', error });
+  }
+};
+
+// Cancel a booking
+const cancelBooking = async (req, res) => {
+  const { user } = req;
+  const { bookingId, bookingToken, otp } = req.body;
+
+  if (!user) {
+    return res.status(401).json({ message: 'Unauthorized. Please log in.' });
+  }
 
   try {
     const booking = await Booking.findById(bookingId).populate('tripId');
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
+    if (booking.userId.toString() !== user._id.toString()) {
+      return res.status(403).json({ message: 'You are not authorized to cancel this booking.' });
+    }
+
+    if (booking.bookingToken !== bookingToken) {
+      return res.status(400).json({ message: 'Invalid booking token.' });
+    }
+
+    // Simulate OTP check
+    const generatedOTP = otp; // In real scenarios, validate OTP from a third-party service
+    if (generatedOTP !== '123456') { // This should be replaced with real OTP generation and validation
+      return res.status(400).json({ message: 'Invalid OTP.' });
+    }
+
     const trip = await Trip.findById(booking.tripId);
     if (!trip) return res.status(404).json({ message: 'Trip not found' });
 
-    // Update seat availability
-    trip.seatAvailability.alreadyBooked = trip.seatAvailability.alreadyBooked.filter(seat => seat !== booking.seatNumber);
+    trip.seatAvailability.alreadyBooked = trip.seatAvailability.alreadyBooked.filter(
+      (seat) => seat !== booking.seatNumber
+    );
     trip.seatAvailability.available.push(booking.seatNumber);
     await trip.save();
 
-    // Update booking status
     booking.status = 'Canceled';
     await booking.save();
 
-    // Create email content
     const emailContent = `
       Booking Canceled!
-      - Bus Name: ${trip.busName}
-      - Bus Number: ${trip.busNumber}
-      - Seat Number: ${booking.seatNumber}
-      - Departure Time: ${trip.departureTime}
-      - Arrival Time: ${trip.arrivalTime}
+      Seat Number: ${booking.seatNumber}, 
+      Bus Number: ${booking.tripId.busNumber}, 
+      Boarding Place: ${booking.boardingPlace}, 
+      Destination Place: ${booking.destinationPlace}.
     `;
     await sendEmail(booking.email, 'Booking Cancellation', emailContent);
 
-    // Create SMS content
-    const smsContent = `Booking canceled! 
-    Bus: ${trip.busName} (${trip.busNumber}), 
-    Seat: ${booking.seatNumber}, 
-    Departure: ${trip.departureTime}, 
-    Arrival: ${trip.arrivalTime}.`;
-    await sendSMS(booking.mobileNumber, smsContent);
-
-    // Respond to the client
     res.status(200).json({ message: 'Booking canceled successfully', booking });
   } catch (error) {
-    res.status(500).json({ message: 'Error canceling booking', error });
+    console.error('Error canceling booking:', error); // Enhanced error logging
+    res.status(500).json({ message: 'Error canceling booking', error: error.message || error });
   }
 };
 
+// View own bookings (Commuter)
+const viewOwnBookings = async (req, res) => {
+  try {
+    const { user } = req; // Assuming req.user contains logged-in user data
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized. Please log in.' });
+    }
+
+    const bookings = await Booking.find({ userId: user._id }).populate('tripId');
+    if (bookings.length === 0) {
+      return res.status(404).json({ message: 'No bookings found.' });
+    }
+
+    const bookingDetails = bookings.map(booking => ({
+      tripId: booking.tripId._id,
+      busName: booking.tripId.busNumber.busName,
+      route: `${booking.tripId.routeNumber.startPoint} to ${booking.tripId.routeNumber.endPoint}`,
+      departureTime: booking.tripId.departureTime,
+      seatNumber: booking.seatNumber,
+      status: booking.status,
+      bookingDate: booking.createdAt,
+    }));
+
+    res.status(200).json({ success: true, bookings: bookingDetails });
+  } catch (error) {
+    console.error('Error fetching bookings:', error);
+    res.status(500).json({ message: 'Error fetching bookings', error });
+  }
+};
+
+module.exports = {
+  searchBuses,
+  sortBuses,
+  viewSeats,
+  bookSeat,
+  processPayment,
+  cancelBooking,
+  viewOwnBookings, 
+};

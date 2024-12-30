@@ -26,13 +26,12 @@ exports.getRouteByNumber = async (req, res) => {
 
 // Create a new route
 exports.createRoute = async (req, res) => {
-  const { routeNumber, startPoint, endPoint, stops, distance } = req.body;
   try {
-    const newRoute = new Route({ routeNumber, startPoint, endPoint, stops, distance });
-    const savedRoute = await newRoute.save();
-    res.status(201).json(savedRoute);
+    const routes = Array.isArray(req.body) ? req.body : [req.body];
+    const savedRoutes = await Route.insertMany(routes);
+    res.status(201).json(savedRoutes);
   } catch (error) {
-    res.status(500).json({ message: 'Error creating route', error: error.message });
+    res.status(500).json({ message: 'Error creating routes', error: error.message });
   }
 };
 
