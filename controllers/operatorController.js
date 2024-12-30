@@ -1,6 +1,11 @@
 // In operatorController.js
 const bcrypt = require('bcrypt');
 const Operator = require('../models/Operator');
+const Bus = require('../models/Bus');
+const Booking = require('../models/Booking');
+const Trip = require('../models/Trip'); // Import the Trip model
+
+const mongoose = require('mongoose'); // Import mongoose
 
 // Register a new operator
 const registerOperator = async (req, res) => {
@@ -111,26 +116,31 @@ const manageOperatorStatus = async (req, res) => {
     }
 };
 
-
-// Get all buses owned by the logged-in operator
+//Get all buses owned by the logged-in operator
 const getOwnedBuses = async (req, res) => {
     try {
-        const operatorId = req.user.id; // From the authenticated user
+        console.log('User from middleware:', req.user);
 
-        // Ensure operatorId is correctly passed and used in query
-        const buses = await Bus.find({ operatorId });
+        const operatorId = req.user.id;
+
+        // Validate the operator ID
+        if (!mongoose.Types.ObjectId.isValid(operatorId)) {
+            return res.status(400).json({ message: 'Invalid operator ID.' });
+        }
+
+        // Use 'new mongoose.Types.ObjectId()' to create an ObjectId instance
+        const buses = await Bus.find({ operatorId: new mongoose.Types.ObjectId(operatorId) });
 
         if (!buses || buses.length === 0) {
             return res.status(404).json({ message: 'No buses found for this operator.' });
         }
 
-        res.status(200).json(buses);
+        res.status(200).json(buses); // Return buses as a response
     } catch (error) {
         console.error('Error fetching buses:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
-
 
 //Operators should be able to view the trips for their buses by bus number and date
 const getBusTrips = async (req, res) => {
@@ -221,24 +231,29 @@ const getBookingsForBus = async (req, res) => {
     }
 };
 
-//When an operator replaces a bus for a scheduled trip, all the commuters who booked tickets for that trip should be notified via email
 const replaceBusInTrip = async (req, res) => {
     try {
         const { tripId, newBusNumber } = req.body;
         const operatorId = req.user.id;
 
-        // Find the trip and check if the operator owns the bus
+        // Find the trip
         const trip = await Trip.findById(tripId);
-        if (!trip || trip.operatorId.toString() !== operatorId) {
-            return res.status(404).json({ message: 'Trip not found or operator does not own this trip.' });
+        if (!trip) {
+            return res.status(404).json({ message: 'Trip not found.' });
         }
 
+        // Check if the operator owns the trip
+        if (!trip.operatorId || trip.operatorId.toString() !== operatorId) {
+            return res.status(403).json({ message: 'You are not authorized to modify this trip.' });
+        }
+
+        // Verify the new bus belongs to the operator
         const newBus = await Bus.findOne({ busNumber: newBusNumber, operatorId });
         if (!newBus) {
             return res.status(404).json({ message: 'New bus not found or not owned by this operator.' });
         }
 
-        // Replace the bus
+        // Replace the bus in the trip
         trip.busNumber = newBusNumber;
         await trip.save();
 
@@ -246,7 +261,7 @@ const replaceBusInTrip = async (req, res) => {
         const bookings = await Booking.find({ tripId });
         bookings.forEach(booking => {
             const emailContent = `
-                Your bus has been replaced by ${newBusNumber}. 
+                Your bus has been replaced by ${newBusNumber}.
                 New details:
                 Bus Number: ${newBusNumber}
                 Seat Number: ${booking.seatNumber}
@@ -268,17 +283,20 @@ const cancelBusTrip = async (req, res) => {
         const { tripId } = req.body;
         const operatorId = req.user.id;
 
-        // Find the trip and check if the operator owns the bus
+        // Fetch the trip and validate ownership
         const trip = await Trip.findById(tripId);
-        if (!trip || trip.operatorId.toString() !== operatorId) {
-            return res.status(404).json({ message: 'Trip not found or operator does not own this trip.' });
+        if (!trip) {
+            return res.status(404).json({ message: 'Trip not found.' });
+        }
+        if (!trip.operatorId || trip.operatorId.toString() !== operatorId) {
+            return res.status(403).json({ message: 'You are not authorized to modify this trip.' });
         }
 
         // Cancel the trip
         trip.status = 'Cancelled';
         await trip.save();
 
-        // Notify commuters (send emails)
+        // Notify commuters
         const bookings = await Booking.find({ tripId });
         bookings.forEach(booking => {
             const emailContent = `
@@ -294,6 +312,7 @@ const cancelBusTrip = async (req, res) => {
 
         res.status(200).json({ message: 'Trip cancelled and commuters notified.' });
     } catch (error) {
+        console.error('Error cancelling trip:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };

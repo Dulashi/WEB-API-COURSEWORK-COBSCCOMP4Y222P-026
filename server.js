@@ -2,13 +2,22 @@
 const express = require('express');
 const morgan = require('morgan');
 const connectToMongoDB = require('./config/MongoDB'); // Import the MongoDB connection function
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
+
 
 // Initialize Express app
 const app = express();
 
+// Swagger setup
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // Middleware
 app.use(express.json()); // Parse incoming JSON requests
 app.use(morgan('dev')); // Log HTTP requests
+
+const cors = require('cors');
+app.use(cors());
 
 // Define the port
 const PORT = process.env.PORT || 3000;

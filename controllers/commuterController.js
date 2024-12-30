@@ -236,56 +236,34 @@ const processPayment = async (req, res) => {
 
 // Cancel a booking
 const cancelBooking = async (req, res) => {
-  const { user } = req;
-  const { bookingId, bookingToken, otp } = req.body;
-
-  if (!user) {
-    return res.status(401).json({ message: 'Unauthorized. Please log in.' });
-  }
-
   try {
-    const booking = await Booking.findById(bookingId).populate('tripId');
-    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+    const { bookingId, bookingToken, otp } = req.body;
 
-    if (booking.userId.toString() !== user._id.toString()) {
-      return res.status(403).json({ message: 'You are not authorized to cancel this booking.' });
+    // Ensure bookingId and bookingToken are provided
+    if (!bookingId || !bookingToken) {
+      return res.status(400).json({ message: 'Booking ID and Token are required.' });
     }
 
-    if (booking.bookingToken !== bookingToken) {
+    // Find the booking in the database
+    const booking = await Booking.findById(bookingId);
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found.' });
+    }
+
+    // Further validation for OTP or other checks
+    if (bookingToken !== booking.token) {
       return res.status(400).json({ message: 'Invalid booking token.' });
     }
 
-    // Simulate OTP check
-    const generatedOTP = otp; // In real scenarios, validate OTP from a third-party service
-    if (generatedOTP !== '123456') { // This should be replaced with real OTP generation and validation
-      return res.status(400).json({ message: 'Invalid OTP.' });
-    }
-
-    const trip = await Trip.findById(booking.tripId);
-    if (!trip) return res.status(404).json({ message: 'Trip not found' });
-
-    trip.seatAvailability.alreadyBooked = trip.seatAvailability.alreadyBooked.filter(
-      (seat) => seat !== booking.seatNumber
-    );
-    trip.seatAvailability.available.push(booking.seatNumber);
-    await trip.save();
-
-    booking.status = 'Canceled';
+    // Proceed with the cancellation logic
+    booking.status = 'Cancelled';
     await booking.save();
 
-    const emailContent = `
-      Booking Canceled!
-      Seat Number: ${booking.seatNumber}, 
-      Bus Number: ${booking.tripId.busNumber}, 
-      Boarding Place: ${booking.boardingPlace}, 
-      Destination Place: ${booking.destinationPlace}.
-    `;
-    await sendEmail(booking.email, 'Booking Cancellation', emailContent);
-
-    res.status(200).json({ message: 'Booking canceled successfully', booking });
+    res.status(200).json({ message: 'Booking cancelled successfully.' });
   } catch (error) {
-    console.error('Error canceling booking:', error); // Enhanced error logging
-    res.status(500).json({ message: 'Error canceling booking', error: error.message || error });
+    console.error('Error cancelling booking:', error);
+    res.status(500).json({ message: 'Error cancelling booking', error });
   }
 };
 
