@@ -19,12 +19,15 @@ const authenticateUser = (req, res, next) => {
       const decoded = jwt.verify(token, JWT_SECRET);
   
       console.log('Decoded token:', decoded); // Log the token
-      req.user = { id: decoded.id, roles: decoded.roles }; // Attach id (not _id) and roles
+
+      // Update the role to be an array, if it's a string
+      req.user = { id: decoded.id, roles: [decoded.role] }; // Attach roles as an array
+
       next();
     } catch (error) {
       console.error('Authentication error:', error.message);
       res.status(401).json({ message: 'Unauthorized. Invalid or expired token.' });
     }
-  };
+};
 
 module.exports = authenticateUser;

@@ -2,11 +2,11 @@ const mongoose = require('mongoose');
 
 const TripSchema = new mongoose.Schema({
   routeNumber: { 
-    type: String,  // Storing as a string
+    type: String,  
     required: true
   },
   busNumber: { 
-    type: String,  // Storing as a string
+    type: String, 
     required: true
   },
   date: { 

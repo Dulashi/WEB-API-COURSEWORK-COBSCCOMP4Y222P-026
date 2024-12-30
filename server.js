@@ -10,14 +10,6 @@ const app = express();
 app.use(express.json()); // Parse incoming JSON requests
 app.use(morgan('dev')); // Log HTTP requests
 
-// Sample Test Route
-//app.get('/api/test', (req, res) => {
-  //res.json({
-    //message: 'Test route is working!',
-    //success: true,
-  //});
-//});
-
 // Define the port
 const PORT = process.env.PORT || 3000;
 
@@ -32,27 +24,14 @@ connectToMongoDB() // Call the connection function
     console.error('Unable to connect to MongoDB:', err.message);
   });
 
-  
-// Use the authentication routes
-const authRoutes = require('./routes/authenticationRoutes');
-app.use('/api/auth', authRoutes);
 
-// Use the routes Routes
-const routeRoutes = require('./routes/routeRoutes'); 
-app.use('/api/routes', routeRoutes); 
+// Routes
+app.use('/api/auth', require('./routes/authenticationRoutes')); // Authentication routes
+app.use('/api/routes', require('./routes/routeRoutes')); // Routes for managing routes
+app.use('/api/buses', require('./routes/busRoutes')); // Routes for managing buses
+app.use('/api/trips', require('./routes/tripRoutes')); // Routes for managing trips
+app.use('/api/bookings', require('./routes/bookingRoutes'));// Booking routes
+app.use('/api/operators', require('./routes/operatorRoutes')); // Routes for operators
+app.use('/api/commuters', require('./routes/commuterRoutes')); // Routes for commuters
 
-// Use the bus routes
-const busRoutes = require('./routes/busRoutes');
-app.use('/api/buses', busRoutes);
 
-// Use the trip routes
-const tripRoutes = require('./routes/tripRoutes');
-app.use('/api/trips', tripRoutes);
-
-//Use the operators routes
-const operatorRoutes = require('./routes/operatorRoutes');  
-app.use('/api/operators', operatorRoutes); 
-
-//Use the commuters routes
-const commuterRoutes = require('./routes/commuterRoutes'); 
-app.use('/api/commuter', commuterRoutes);
