@@ -10,8 +10,8 @@ const options = {
         },
         servers: [
             {
-                url: "https://bus-seats-booking-system-ntc-backend.up.railway.app", // Deployed server URL
-                description: "Deployed server", // Description for deployed server
+                url: process.env.SWAGGER_SERVER_URL || "http://localhost:5000", // Use Railway variable or fallback to localhost
+                description: "Deployed server",
             },
         ],
     },
