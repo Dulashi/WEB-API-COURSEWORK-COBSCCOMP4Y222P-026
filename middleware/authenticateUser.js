@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = 'my_super_secret_key_1234567890abcdef1234567890abcdef';
 
 if (!JWT_SECRET) {
   throw new Error('JWT_SECRET is not defined in the environment variables.');
