@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
-require('dotenv').config(); // Load environment variables
+const mongoose = require('mongoose');
+require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -9,25 +10,27 @@ if (!JWT_SECRET) {
 
 const authenticateUser = (req, res, next) => {
     try {
-      const authHeader = req.headers.authorization;
-  
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: 'Unauthorized. No token provided.' });
-      }
-  
-      const token = authHeader.split(' ')[1];
-      const decoded = jwt.verify(token, JWT_SECRET);
-  
-      console.log('Decoded token:', decoded); // Log the token
+        const authHeader = req.headers.authorization;
 
-      // Update the role to be an array, if it's a string
-      req.user = { id: decoded.id, roles: [decoded.role] }; // Attach roles as an array
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ message: 'Unauthorized. No token provided.' });
+        }
 
-      next();
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        // Ensure the ID is valid
+        if (!decoded.id || !mongoose.Types.ObjectId.isValid(decoded.id)) {
+            throw new Error('Invalid user ID in token.');
+        }
+
+        req.user = { id: decoded.id, roles: [decoded.role] }; // Set the user details in req.user
+        next();
     } catch (error) {
-      console.error('Authentication error:', error.message);
-      res.status(401).json({ message: 'Unauthorized. Invalid or expired token.' });
+        console.error('Authentication error:', error.message);
+        res.status(401).json({ message: 'Unauthorized. Invalid or expired token.' });
     }
 };
 
 module.exports = authenticateUser;
+
