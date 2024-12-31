@@ -8,8 +8,8 @@ const {
   cancelBooking,
   viewOwnBookings,
 } = require('../controllers/commuterController');
-const authenticateUser = require('../middleware/authenticateUser');  // Import middleware
-const authorizeRoles = require('../middleware/authorizeRoles');  // Import authorizeRoles middleware
+const authenticateUser = require('../middleware/authenticateUser'); // Import middleware
+const authorizeRoles = require('../middleware/authorizeRoles'); // Import authorizeRoles middleware
 
 const router = express.Router();
 
@@ -18,9 +18,10 @@ const router = express.Router();
  * /api/commuters/search:
  *   get:
  *     summary: Search buses based on departure and arrival stations and date
- *     description: Search buses based on the departure station, arrival station, and the selected travel date.
- *     tags: 
- *       - Commuter
+ *     description: >
+ *       Search buses based on the departure station, arrival station,
+ *       and the selected travel date.
+ *     tags: [Commuter]
  *     parameters:
  *       - name: departureStation
  *         in: query
@@ -107,37 +108,23 @@ router.get('/trips/:tripId/seats', viewSeats); // View seats for a specific trip
  *     summary: Book a seat for a commuter
  *     description: Allow a commuter to book a seat on a specific bus trip.
  *     tags: [Commuter]
- *     parameters:
- *       - name: tripId
- *         in: body
- *         required: true
- *         description: Trip ID for booking
- *         schema:
- *           type: string
- *       - name: passengerName
- *         in: body
- *         required: true
- *         description: Name of the passenger
- *         schema:
- *           type: string
- *       - name: seatNumber
- *         in: body
- *         required: true
- *         description: Seat number to book
- *         schema:
- *           type: integer
- *       - name: boardingPlace
- *         in: body
- *         required: true
- *         description: Boarding location
- *         schema:
- *           type: string
- *       - name: destinationPlace
- *         in: body
- *         required: true
- *         description: Destination location
- *         schema:
- *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               tripId:
+ *                 type: string
+ *               passengerName:
+ *                 type: string
+ *               seatNumber:
+ *                 type: integer
+ *               boardingPlace:
+ *                 type: string
+ *               destinationPlace:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Seat booked successfully
@@ -157,34 +144,28 @@ router.post('/book-seat', authenticateUser, authorizeRoles(['Commuter']), bookSe
  *     summary: Process payment for a booking
  *     description: Process the payment for a confirmed booking and generate a booking token.
  *     tags: [Commuter]
- *     parameters:
- *       - name: bookingId
- *         in: body
- *         required: true
- *         description: Booking ID to process payment
- *         schema:
- *           type: string
- *       - name: paymentMethod
- *         in: body
- *         required: true
- *         description: Payment method used (e.g., Credit Card)
- *         schema:
- *           type: string
- *       - name: cardDetails
- *         in: body
- *         required: true
- *         description: Card details for processing payment
- *         schema:
- *           type: object
- *           properties:
- *             cardNumber:
- *               type: string
- *             expirationDate:
- *               type: string
- *             cardHolderName:
- *               type: string
- *             cvv:
- *               type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               bookingId:
+ *                 type: string
+ *               paymentMethod:
+ *                 type: string
+ *               cardDetails:
+ *                 type: object
+ *                 properties:
+ *                   cardNumber:
+ *                     type: string
+ *                   expirationDate:
+ *                     type: string
+ *                   cardHolderName:
+ *                     type: string
+ *                   cvv:
+ *                     type: string
  *     responses:
  *       200:
  *         description: Payment successful
@@ -204,19 +185,17 @@ router.post('/payments', authenticateUser, authorizeRoles(['Commuter']), process
  *     summary: Cancel a confirmed booking
  *     description: Allow a commuter to cancel their booking by providing the booking ID and token.
  *     tags: [Commuter]
- *     parameters:
- *       - name: bookingId
- *         in: body
- *         required: true
- *         description: Booking ID to cancel
- *         schema:
- *           type: string
- *       - name: bookingToken
- *         in: body
- *         required: true
- *         description: Booking token for validation
- *         schema:
- *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               bookingId:
+ *                 type: string
+ *               bookingToken:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Booking cancelled successfully

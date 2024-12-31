@@ -18,6 +18,7 @@
     "nodemon": "^3.1.9"
   },
   "scripts": {
+    "start": "node src/server.js",
     "dev": "nodemon server.js"
   }
 }
