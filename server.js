@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const { Server } = require('socket.io');
 const morgan = require('morgan');
 const cors = require('cors');
 const dotenv = require('dotenv'); // For loading environment variables
@@ -50,6 +51,14 @@ connectToMongoDB(MONGO_URI) // Pass the MONGO_URI from environment
         console.error('Unable to connect to MongoDB:', err.message);
     });
 
+// Socket.IO events (example)
+io.on('connection', (socket) => {
+    console.log('A user connected:', socket.id);
+
+    socket.on('disconnect', () => {
+        console.log('A user disconnected:', socket.id);
+    });
+});
 
 // Routes
 app.use('/api/auth', require('./routes/authenticationRoutes')); // Authentication routes
