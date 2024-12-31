@@ -10,7 +10,12 @@ const options = {
         },
         servers: [
             {
-                url: "http://localhost:3000", //  the base URL as needed
+                url: "http://localhost:3000", // Local server URL
+                description: "Local development server", // Description for local server
+            },
+            {
+                url: "https://bus-seats-booking-system-ntc-backend.up.railway.app", // Deployed server URL
+                description: "Deployed server (Railway app)", // Description for deployed server
             },
         ],
     },
