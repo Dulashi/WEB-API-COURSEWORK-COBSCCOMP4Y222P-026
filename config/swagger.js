@@ -10,7 +10,7 @@ const options = {
         },
         servers: [
             {
-                url: process.env.SWAGGER_SERVER_URL || "http://localhost:5000", // Use Railway variable or fallback to localhost
+                url: process.env.SWAGGER_SERVER_URL || "http://localhost:3000", // Use Railway variable or fallback to localhost
                 description: "Deployed server",
             },
         ],
